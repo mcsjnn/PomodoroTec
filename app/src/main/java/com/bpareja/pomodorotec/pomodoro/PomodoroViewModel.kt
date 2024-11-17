@@ -14,6 +14,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.bpareja.pomodorotec.MainActivity
 import com.bpareja.pomodorotec.R
+import kotlin.random.Random
 
 enum class Phase {
     FOCUS, BREAK
@@ -48,6 +49,21 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
     private var countDownTimer: CountDownTimer? = null
     private var timeRemainingInMillis: Long = 25 * 60 * 1000L // Tiempo inicial para FOCUS
 
+    // Mensajes motivacionales para las fases de concentración y descanso
+    private val focusMessages = arrayOf(
+        "¡Vamos, solo 25 minutos para lograr tus metas!",
+        "¡Es hora de concentrarse, el éxito te espera!",
+        "El enfoque es el camino al éxito. ¡A por ello!",
+        "No te detengas ahora, cada segundo cuenta."
+    )
+
+    private val breakMessages = arrayOf(
+        "¡Bien hecho! Relájate, mereces este descanso.",
+        "Tómate un respiro, disfruta este momento de calma.",
+        "¡Recarga tus energías! Un descanso productivo es clave.",
+        "Respira profundamente y relájate. ¡Tu mente lo necesita!"
+    )
+
     // Función para iniciar la sesión de concentración
     fun startFocusSession() {
         countDownTimer?.cancel() // Cancela cualquier temporizador en ejecución
@@ -55,7 +71,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         timeRemainingInMillis = 25 * 60 * 1000L // Restablece el tiempo de enfoque a 25 minutos
         _timeLeft.value = "25:00"
         _isSkipBreakButtonVisible.value = false // Ocultar el botón si estaba visible
-        showNotification("Inicio de Concentración", "La sesión de concentración ha comenzado.")
+        showNotification("Inicio de Concentración", getRandomMessage(focusMessages))
         startTimer() // Inicia el temporizador con el tiempo de enfoque actualizado
     }
 
@@ -65,7 +81,7 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
         timeRemainingInMillis = 5 * 60 * 1000L // 5 minutos para descanso
         _timeLeft.value = "05:00"
         _isSkipBreakButtonVisible.value = true // Mostrar el botón durante el descanso
-        showNotification("Inicio de Descanso", "La sesión de descanso ha comenzado.")
+        showNotification("Inicio de Descanso", getRandomMessage(breakMessages))
         startTimer()
     }
 
@@ -117,12 +133,23 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             context, 0, intent, PendingIntent.FLAG_IMMUTABLE
         )
 
+        val notificationIcon = when (_currentPhase.value) {
+            Phase.FOCUS -> R.drawable.ic_focus // Ícono para fase de concentración
+            Phase.BREAK -> R.drawable.ic_break // Ícono para fase de descanso
+            else -> R.drawable.ic_default // Ícono por defecto en caso de no estar en fase de concentración ni descanso
+        }
+
         // Color para la notificación según la fase (rojo para concentración, verde para descanso)
         val notificationColor = if (_currentPhase.value == Phase.FOCUS) 0xFFFF0000.toInt() else 0xFF00FF00.toInt()
-        val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) // Sonido predeterminado
+
+        val soundUri = if (_currentPhase.value == Phase.FOCUS)
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)  // Sonido predeterminado
+        else
+            RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
 
         val builder = NotificationCompat.Builder(context, MainActivity.CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Ícono personalizado
+            .setSmallIcon(notificationIcon) // Ícono personalizado
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -141,5 +168,10 @@ class PomodoroViewModel(application: Application) : AndroidViewModel(application
             }
             notify(MainActivity.NOTIFICATION_ID, builder.build())
         }
+    }
+
+    // Función para obtener un mensaje aleatorio
+    private fun getRandomMessage(messages: Array<String>): String {
+        return messages[Random.nextInt(messages.size)]
     }
 }
